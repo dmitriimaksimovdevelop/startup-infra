@@ -1,0 +1,28 @@
+# Copy this file to terraform.tfvars and fill in your values.
+# NEVER commit terraform.tfvars to version control!
+
+hcloud_token   = "your-hetzner-cloud-api-token"
+talos_image_id = "123456789"
+allowed_ips    = ["YOUR_IP/32"]
+
+# GitHub Actions Runner Controller
+github_config_url = "https://github.com/your-org/your-repo"
+github_pat        = "ghp_xxxxxxxxxxxxxxxxxxxx"
+
+# Domain & TLS
+domain     = "example.com"
+acme_email = "admin@example.com"
+
+# Loki S3 storage
+loki_s3_bucket_name = "loki-logs"
+loki_s3_endpoint    = "nbg1.your-objectstorage.com"
+loki_s3_access_key  = "your-s3-access-key"
+loki_s3_secret_key  = "your-s3-secret-key"
+
+# Optional overrides (defaults are fine for most setups)
+# cluster_name           = "talos-k8s"
+# location               = "nbg1"
+# server_type            = "cx33"
+# node_count             = 3
+# worker_count           = 0
+# grafana_admin_password = "change-me"

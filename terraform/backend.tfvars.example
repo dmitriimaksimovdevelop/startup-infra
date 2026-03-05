@@ -1,0 +1,6 @@
+# Copy this file to backend.tfvars and fill in your S3 credentials.
+# These are used by Terraform to store state remotely.
+# NEVER commit backend.tfvars to version control!
+
+access_key = "your-s3-access-key"
+secret_key = "your-s3-secret-key"

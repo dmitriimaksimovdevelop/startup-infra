@@ -1,0 +1,5 @@
+apiVersion: v2
+name: hcloud-secret
+description: Minimal chart to deploy Hetzner Cloud token as a Kubernetes secret
+version: 0.1.0
+type: application

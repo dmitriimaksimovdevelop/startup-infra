@@ -1,0 +1,65 @@
+# Example GitHub Actions workflow for application deployment with Werf.
+# Copy this file to deploy.yaml and configure the required secrets.
+#
+# Required GitHub Secrets:
+#   KUBECONFIG - Base64-encoded kubeconfig (run: base64 -i kubeconfig)
+#
+# The workflow uses GITHUB_TOKEN (auto-generated) for GHCR access.
+
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "apps/**"
+      - "charts/**"
+  workflow_dispatch:
+    inputs:
+      app:
+        description: "Application to deploy"
+        required: true
+        default: "myapp"
+
+env:
+  WERF_REPO: ghcr.io/${{ github.repository_owner }}
+
+jobs:
+  converge:
+    name: Deploy App
+    runs-on: arc-runner-set  # Change to 'ubuntu-latest' if not using ARC
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: werf/actions/install@v2
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set kubeconfig
+        run: |
+          mkdir -p ~/.kube
+          echo "${{ secrets.KUBECONFIG }}" | base64 -d > ~/.kube/config
+
+      - name: werf converge
+        working-directory: apps/${{ inputs.app || 'myapp' }}
+        run: |
+          . $(werf ci-env github --as-file)
+          werf converge \
+            --repo="${WERF_REPO}/${{ inputs.app || 'myapp' }}"
+        env:
+          WERF_ENV: production
+
+      - name: werf cleanup
+        if: always()
+        working-directory: apps/${{ inputs.app || 'myapp' }}
+        run: |
+          . $(werf ci-env github --as-file)
+          werf cleanup \
+            --repo="${WERF_REPO}/${{ inputs.app || 'myapp' }}"

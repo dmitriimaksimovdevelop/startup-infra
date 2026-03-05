@@ -1,0 +1,118 @@
+# Example GitHub Actions workflow for Terraform infrastructure management.
+# Copy this file to infra.yaml and configure the required secrets in your repository.
+#
+# Required GitHub Secrets:
+#   HCLOUD_TOKEN          - Hetzner Cloud API token
+#   TALOS_IMAGE_ID        - Hetzner snapshot ID with Talos Linux
+#   ALLOWED_IPS           - JSON list of allowed CIDRs (e.g. '["1.2.3.4/32"]')
+#   S3_ACCESS_KEY         - Object Storage access key (for Terraform state)
+#   S3_SECRET_KEY         - Object Storage secret key (for Terraform state)
+#   ARC_GITHUB_CONFIG_URL - GitHub repo/org URL for ARC runners
+#   ARC_GITHUB_PAT        - GitHub PAT for ARC
+#   LOKI_S3_ACCESS_KEY    - S3 access key for Loki
+#   LOKI_S3_SECRET_KEY    - S3 secret key for Loki
+#
+# Required GitHub Variables:
+#   LOKI_S3_BUCKET_NAME   - S3 bucket name for Loki
+#   LOKI_S3_ENDPOINT      - S3 endpoint for Loki
+#   DOMAIN                - Your domain name
+#   ACME_EMAIL            - Email for Let's Encrypt
+
+name: Infrastructure
+
+on:
+  pull_request:
+    paths:
+      - "terraform/**"
+      - ".github/workflows/infra.yaml"
+  push:
+    branches: [main]
+    paths:
+      - "terraform/**"
+      - ".github/workflows/infra.yaml"
+  workflow_dispatch:
+    inputs:
+      action:
+        description: "Action to perform"
+        required: true
+        type: choice
+        options:
+          - plan
+          - apply
+
+permissions:
+  contents: read
+  pull-requests: write
+
+env:
+  TF_VAR_hcloud_token: ${{ secrets.HCLOUD_TOKEN }}
+  TF_VAR_talos_image_id: ${{ secrets.TALOS_IMAGE_ID }}
+  TF_VAR_allowed_ips: ${{ secrets.ALLOWED_IPS }}
+  TF_VAR_github_config_url: ${{ secrets.ARC_GITHUB_CONFIG_URL }}
+  TF_VAR_github_pat: ${{ secrets.ARC_GITHUB_PAT }}
+  TF_VAR_domain: ${{ vars.DOMAIN }}
+  TF_VAR_acme_email: ${{ vars.ACME_EMAIL }}
+  TF_VAR_loki_s3_bucket_name: ${{ vars.LOKI_S3_BUCKET_NAME }}
+  TF_VAR_loki_s3_endpoint: ${{ vars.LOKI_S3_ENDPOINT }}
+  TF_VAR_loki_s3_access_key: ${{ secrets.LOKI_S3_ACCESS_KEY }}
+  TF_VAR_loki_s3_secret_key: ${{ secrets.LOKI_S3_SECRET_KEY }}
+  AWS_ACCESS_KEY_ID: ${{ secrets.S3_ACCESS_KEY }}
+  AWS_SECRET_ACCESS_KEY: ${{ secrets.S3_SECRET_KEY }}
+  TF_VERSION: "1.14.5"
+  RESOLVE_IPV4_ONLY: "true"
+
+jobs:
+  plan:
+    name: Terraform Plan
+    if: github.event_name == 'pull_request' || github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.action == 'plan')
+    runs-on: arc-runner-set  # Change to 'ubuntu-latest' if not using ARC
+    defaults:
+      run:
+        working-directory: terraform
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Terraform
+        run: |
+          mkdir -p "$HOME/.local/bin"
+          curl -4 -fsSL "https://releases.hashicorp.com/terraform/${TF_VERSION}/terraform_${TF_VERSION}_linux_amd64.zip" -o tf.zip
+          unzip -o tf.zip
+          mv terraform "$HOME/.local/bin/"
+          rm tf.zip
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          sudo sysctl -w net.ipv6.conf.all.disable_ipv6=1 >/dev/null 2>&1 || true
+
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Terraform Validate
+        run: terraform validate
+
+      - name: Terraform Plan
+        run: terraform plan -no-color
+
+  apply:
+    name: Terraform Apply
+    if: github.event_name == 'workflow_dispatch' && inputs.action == 'apply'
+    runs-on: arc-runner-set  # Change to 'ubuntu-latest' if not using ARC
+    defaults:
+      run:
+        working-directory: terraform
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Terraform
+        run: |
+          mkdir -p "$HOME/.local/bin"
+          curl -4 -fsSL "https://releases.hashicorp.com/terraform/${TF_VERSION}/terraform_${TF_VERSION}_linux_amd64.zip" -o tf.zip
+          unzip -o tf.zip
+          mv terraform "$HOME/.local/bin/"
+          rm tf.zip
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          sudo sysctl -w net.ipv6.conf.all.disable_ipv6=1 >/dev/null 2>&1 || true
+
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Terraform Apply
+        run: terraform apply -auto-approve

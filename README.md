@@ -133,17 +133,20 @@ See [docs/BOOTSTRAP.md](docs/BOOTSTRAP.md) for the full step-by-step guide.
 │   ├── backend.tfvars.example
 │   └── charts/                 # Local Helm charts
 │       └── hcloud-secret/      # Hetzner Cloud token secret
-├── apps/                       # Application deployments
-│   └── myapp/                  # Example application
+├── charts/                     # Shared Helm library charts
+│   └── app-template/           # Reusable Deployment+Service+Secret templates
+├── apps/                       # Application deployments (Werf + Helm)
+│   └── myapp/                  # Example app (Nginx static site)
 │       ├── Dockerfile
 │       ├── werf.yaml
-│       └── .helm/              # Helm chart for the app
+│       └── .helm/              # Helm chart (uses app-template)
 ├── .github/workflows/          # CI/CD pipeline examples
 │   ├── infra.yaml.example      # Terraform plan/apply workflow
 │   └── deploy.yaml.example     # Werf deploy workflow
 ├── docs/                       # Documentation
 │   ├── HETZNER_SETUP.md        # Hetzner Cloud preparation guide
-│   └── BOOTSTRAP.md            # Step-by-step bootstrap guide
+│   ├── BOOTSTRAP.md            # Step-by-step bootstrap guide
+│   └── APPLICATIONS.md         # Werf deployment & app-template reference
 ├── Makefile                    # Convenience commands
 ├── SECURITY.md                 # Security policy and considerations
 └── LICENSE                     # Apache 2.0
@@ -151,7 +154,23 @@ See [docs/BOOTSTRAP.md](docs/BOOTSTRAP.md) for the full step-by-step guide.
 
 ## Deploying Applications
 
-Each app lives in `apps/<name>/` with a Dockerfile and Helm chart:
+Applications are built and deployed with [Werf](https://werf.io/) -- a CLI tool that handles Docker build, push to GHCR, and Helm deploy in one step. Each app lives in `apps/<name>/` with a Dockerfile and Helm chart.
+
+The included `myapp` is a minimal example: an Nginx container serving a static HTML page. It demonstrates the full pattern:
+
+```
+apps/myapp/
+├── Dockerfile          # Build instructions (nginx + index.html)
+├── werf.yaml           # Tells Werf which Dockerfile to build
+├── index.html          # Your application code
+└── .helm/
+    ├── Chart.yaml      # Depends on shared app-template library chart
+    ├── templates/
+    │   └── app.yaml    # {{ include "app-template.all" . }}
+    └── values.yaml     # Replicas, ports, resources, env, secrets
+```
+
+The shared `charts/app-template/` library chart generates Deployment + Service + Secret from `values.yaml` -- no boilerplate YAML needed.
 
 ```bash
 # Create a new app from the example
@@ -160,6 +179,8 @@ make new-app NAME=my-service
 # Edit apps/my-service/Dockerfile and .helm/values.yaml
 # Push to main branch -- the deploy workflow handles the rest
 ```
+
+See [docs/APPLICATIONS.md](docs/APPLICATIONS.md) for the full guide: values reference, advanced examples, local development with Werf, and CI/CD setup.
 
 ## Customization
 

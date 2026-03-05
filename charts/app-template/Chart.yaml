@@ -1,0 +1,7 @@
+apiVersion: v2
+description: >-
+  Reusable Helm library chart for werf-based applications.
+  Provides named templates: deployment, service, secret.
+name: app-template
+type: library
+version: 0.1.0
